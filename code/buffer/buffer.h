@@ -36,18 +36,18 @@ public:
     std::string RetrieveAllToStr();         //讲可读部分作为字符串返回, 然后初始化置零
 
 
-    void Append(const std::string& str);
-    void Append(const char* str, size_t len);
-    void Append(const void* data, size_t len);
-    void Append(const Buffer& buff);
+    void Append(const char* str, size_t len);       //将从char* 指向的地址开始长度为len字节的数据追加到缓冲区
+    void Append(const void* data, size_t len);      //同上
+    void Append(const std::string& str);            //同上
+    void Append(const Buffer& buff);                //同上
 
-    ssize_t ReadFd(int fd, int* Errno);
-    ssize_t WriteFd(int fd, int* Errno);
+    ssize_t ReadFd(int fd, int* Errno);             //将fd的数据读到缓冲区中
+    ssize_t WriteFd(int fd, int* Errno);            //将缓冲区中的文件写到fd中
 
 private:
-    char* BeginPtr_();                  //返回底层数据结构起始指针
+    char* BeginPtr_();                  //返回底层数据结构开始指针
     
-    const char* BeginPtr_() const;      //返回底层数据结构起始指针
+    const char* BeginPtr_() const;      //返回底层数据结构开始指针
 
     void MakeSpace_(size_t len);        //若可用空间小于len, 则扩大一倍空间
 
