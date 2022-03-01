@@ -93,6 +93,7 @@ ssize_t Buffer::ReadFd(int fd, int* saveErrno) {
     iov[1].iov_base = buff;
     iov[1].iov_len = sizeof(buff);
 
+    
     const ssize_t len = readv(fd, iov, 2);
     if(len < 0) {
         *saveErrno = errno;
@@ -127,12 +128,14 @@ const char* Buffer::BeginPtr_() const {
 }
 
 void Buffer::MakeSpace_(size_t len) {
+    //可写字节加已用字节小于len，即剩余所有可用空间小于len字节
+    //所以需要扩充空间
     if(WritableBytes() + PrependableBytes() < len) {
-        buffer_.resize(writePos_ + len + 1);
+        buffer_.resize(buffer_.size() * 2);
     } 
     else {
         size_t readable = ReadableBytes();
-        std::copy(BeginPtr_() + readPos_, BeginPtr_() + writePos_, BeginPtr_());
+        std::copy(const_cast<char *>(Peek()), BeginWrite(), BeginPtr_());
         readPos_ = 0;
         writePos_ = readPos_ + readable;
         assert(readable == ReadableBytes());

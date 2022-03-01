@@ -14,7 +14,7 @@
 template<class T>
 class BlockDeque {
 public:
-    explicit BlockDeque(size_t MaxCapacity = 1000);
+    explicit BlockDeque(size_t MaxCapacity = 1024);
 
     ~BlockDeque();
 

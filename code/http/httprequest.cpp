@@ -176,6 +176,8 @@ void HttpRequest::ParseFromUrlencoded_() {
 
 bool HttpRequest::UserVerify(const string &name, const string &pwd, bool isLogin) {
     if(name == "" || pwd == "") { return false; }
+    
+
     LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
     MYSQL* sql;
     SqlConnRAII(&sql,  SqlConnPool::Instance());
@@ -193,6 +195,7 @@ bool HttpRequest::UserVerify(const string &name, const string &pwd, bool isLogin
     LOG_DEBUG("%s", order);
 
     if(mysql_query(sql, order)) { 
+        LOG_DEBUG("mysql error!");
         mysql_free_result(res);
         return false; 
     }

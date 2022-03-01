@@ -149,6 +149,9 @@ void Log::write(int level, const char *format, ...) {
 }
 
 void Log::AppendLogLevelTitle_(int level) {
+
+    
+
     switch(level) {
     case 0:
         buff_.Append("[debug]: ", 9);
