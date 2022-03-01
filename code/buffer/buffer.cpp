@@ -134,7 +134,7 @@ void Buffer::MakeSpace_(size_t len) {
     //可写字节加已用字节小于len，即剩余所有可用空间小于len字节
     //所以需要扩充空间
     if(WritableBytes() + PrependableBytes() < len) {
-        buffer_.resize(buffer_.size() * 2);
+        while (WritableBytes() + PrependableBytes() < len) buffer_.resize(buffer_.size() * 2);
     } 
     else {
         size_t readable = ReadableBytes();

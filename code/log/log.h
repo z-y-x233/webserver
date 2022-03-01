@@ -17,8 +17,12 @@
 #include "blockqueue.h"
 #include "../buffer/buffer.h"
 
+
 class Log {
 public:
+    enum LEVEL{
+        DEBUG, INFO, WARN, ERROR
+    };
     void init(int level, const char* path = "./log", 
                 const char* suffix =".log",
                 int maxQueueCapacity = 1024);
@@ -34,34 +38,34 @@ public:
     bool IsOpen() { return isOpen_; }
     
 private:
-    Log();
-    void AppendLogLevelTitle_(int level);
-    virtual ~Log();
-    void AsyncWrite_();
+    Log();                                  //构造函数
+    void AppendLogLevelTitle_(int level);   //根据日志级别添加日志头部信息
+    virtual ~Log();                         //析构函数
+    void AsyncWrite_();                     //异步写入
 
 private:
     static const int LOG_PATH_LEN = 256;
     static const int LOG_NAME_LEN = 256;
     static const int MAX_LINES = 50000;
 
-    const char* path_;
-    const char* suffix_;
+    const char* path_;          //日志文件前缀目录
+    const char* suffix_;        //日志文件后缀
 
-    int MAX_LINES_;
+    int MAX_LINES_;             //
 
-    int lineCount_;
-    int toDay_;
+    int lineCount_;             //行号
+    int toDay_;                 //今天日期
 
-    bool isOpen_;
+    bool isOpen_;               //
  
-    Buffer buff_;
-    int level_;
-    bool isAsync_;
+    Buffer buff_;               //读写缓冲
+    int level_;                 //日志级别
+    bool isAsync_;              //是否异步
+    FILE* fp_;                  //指向当前日志的指针
 
-    FILE* fp_;
-    std::unique_ptr<BlockDeque<std::string>> deque_; 
-    std::unique_ptr<std::thread> writeThread_;
-    std::mutex mtx_;
+    std::unique_ptr<BlockDeque<std::string>> deque_;    //
+    std::unique_ptr<std::thread> writeThread_;          //
+    std::mutex mtx_;                                    //
 };
 
 #define LOG_BASE(level, format, ...) \

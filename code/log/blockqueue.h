@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <sys/time.h>
 
+//线程安全deque
 template<class T>
 class BlockDeque {
 public:
@@ -45,17 +46,17 @@ public:
     void flush();
 
 private:
-    std::deque<T> deq_;
+    std::deque<T> deq_;     //用std::deque封装实现
 
-    size_t capacity_;
+    size_t capacity_;       //可用最大容量
 
-    std::mutex mtx_;
+    std::mutex mtx_;        //加锁实现线程安全
 
-    bool isClose_;
+    bool isClose_;          //是否关闭
 
-    std::condition_variable condConsumer_;
+    std::condition_variable condConsumer_;      //消费者
 
-    std::condition_variable condProducer_;
+    std::condition_variable condProducer_;      //生产者
 };
 
 
@@ -65,6 +66,7 @@ BlockDeque<T>::BlockDeque(size_t MaxCapacity) :capacity_(MaxCapacity) {
     isClose_ = false;
 }
 
+
 template<class T>
 BlockDeque<T>::~BlockDeque() {
     Close();
@@ -72,14 +74,19 @@ BlockDeque<T>::~BlockDeque() {
 
 template<class T>
 void BlockDeque<T>::Close() {
+    //std::lock_guard在构造函数中自动绑定它的互斥体并加锁，在析构函数中解锁
+    //在离开{}后调用析构解锁
     {   
         std::lock_guard<std::mutex> locker(mtx_);
         deq_.clear();
         isClose_ = true;
     }
+    //关闭后唤醒所有线程让其退出
     condProducer_.notify_all();
     condConsumer_.notify_all();
 };
+
+
 
 template<class T>
 void BlockDeque<T>::flush() {
@@ -119,6 +126,7 @@ size_t BlockDeque<T>::capacity() {
 template<class T>
 void BlockDeque<T>::push_back(const T &item) {
     std::unique_lock<std::mutex> locker(mtx_);
+    //若当前容量已满, 等待一个pop相关函数运行成功发出produce信号唤醒
     while(deq_.size() >= capacity_) {
         condProducer_.wait(locker);
     }
@@ -151,6 +159,8 @@ bool BlockDeque<T>::full(){
 template<class T>
 bool BlockDeque<T>::pop(T &item) {
     std::unique_lock<std::mutex> locker(mtx_);
+    //若当前容量为空, 等待一个push相关函数运行成功发出consum信号唤醒
+
     while(deq_.empty()){
         condConsumer_.wait(locker);
         if(isClose_){

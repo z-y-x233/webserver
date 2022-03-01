@@ -5,7 +5,6 @@
  */ 
 #include "log.h"
 
-using namespace std;
 
 Log::Log() {
     lineCount_ = 0;
@@ -25,34 +24,35 @@ Log::~Log() {
         writeThread_->join();
     }
     if(fp_) {
-        lock_guard<mutex> locker(mtx_);
+        std::lock_guard<std::mutex> locker(mtx_);
         flush();
         fclose(fp_);
     }
 }
 
 int Log::GetLevel() {
-    lock_guard<mutex> locker(mtx_);
+    std::lock_guard<std::mutex> locker(mtx_);
     return level_;
 }
 
 void Log::SetLevel(int level) {
-    lock_guard<mutex> locker(mtx_);
+    std::lock_guard<std::mutex> locker(mtx_);
     level_ = level;
 }
 
-void Log::init(int level = 1, const char* path, const char* suffix,
-    int maxQueueSize) {
+void Log::init(int level = 1, const char* path, const char* suffix, int maxQueueSize) {
     isOpen_ = true;
     level_ = level;
     if(maxQueueSize > 0) {
         isAsync_ = true;
         if(!deque_) {
-            unique_ptr<BlockDeque<std::string>> newDeque(new BlockDeque<std::string>);
-            deque_ = move(newDeque);
+            // std::unique_ptr<BlockDeque<std::string>> newDeque(new BlockDeque<std::string>);
+            // deque_ = move(newDeque);
+            deque_.reset(new BlockDeque<std::string>);
             
-            std::unique_ptr<std::thread> NewThread(new thread(FlushLogThread));
-            writeThread_ = move(NewThread);
+            // std::unique_ptr<std::thread> NewThread(new std::thread(FlushLogThread));
+            // writeThread_ = move(NewThread);
+            writeThread_.reset(new std::thread(FlushLogThread));
         }
     } else {
         isAsync_ = false;
@@ -65,19 +65,23 @@ void Log::init(int level = 1, const char* path, const char* suffix,
     struct tm t = *sysTime;
     path_ = path;
     suffix_ = suffix;
+    //根据当天日期和前后缀创建日志文件名
     char fileName[LOG_NAME_LEN] = {0};
     snprintf(fileName, LOG_NAME_LEN - 1, "%s/%04d_%02d_%02d%s", 
             path_, t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, suffix_);
+    
     toDay_ = t.tm_mday;
 
     {
-        lock_guard<mutex> locker(mtx_);
+        std::lock_guard<std::mutex> locker(mtx_);
+        //清空缓冲区, 防止上次的数据污染
+        //若当前打开了一个文件, 将当前所有日志写入后关闭
         buff_.RetrieveAll();
         if(fp_) { 
             flush();
             fclose(fp_); 
         }
-
+        //打开文件, 若创建失败说明目录不存在, 创建目录后再次打开
         fp_ = fopen(fileName, "a");
         if(fp_ == nullptr) {
             mkdir(path_, 0777);
@@ -95,10 +99,10 @@ void Log::write(int level, const char *format, ...) {
     struct tm t = *sysTime;
     va_list vaList;
 
-    /* 日志日期 日志行数 */
-    if (toDay_ != t.tm_mday || (lineCount_ && (lineCount_  %  MAX_LINES == 0)))
+    //若已经过了一天或者当前日志行数大于最大行数, 则创建新的日志文件
+    if (toDay_ != t.tm_mday || (lineCount_ && (lineCount_  %  MAX_LINES) == 0))
     {
-        unique_lock<mutex> locker(mtx_);
+        std::unique_lock<std::mutex> locker(mtx_);
         locker.unlock();
         
         char newFile[LOG_NAME_LEN];
@@ -123,7 +127,9 @@ void Log::write(int level, const char *format, ...) {
     }
 
     {
-        unique_lock<mutex> locker(mtx_);
+        std::unique_lock<std::mutex> locker(mtx_);
+        // locker.lock();
+
         lineCount_++;
         int n = snprintf(buff_.BeginWrite(), 128, "%d-%02d-%02d %02d:%02d:%02d.%06ld ",
                     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
@@ -145,12 +151,12 @@ void Log::write(int level, const char *format, ...) {
             fputs(buff_.Peek(), fp_);
         }
         buff_.RetrieveAll();
+        // locker.unlock();
+
     }
 }
 
 void Log::AppendLogLevelTitle_(int level) {
-
-    
 
     switch(level) {
     case 0:
@@ -179,9 +185,10 @@ void Log::flush() {
 }
 
 void Log::AsyncWrite_() {
-    string str = "";
+    std::string str = "";
+    
     while(deque_->pop(str)) {
-        lock_guard<mutex> locker(mtx_);
+        std::lock_guard<std::mutex> locker(mtx_);
         fputs(str.c_str(), fp_);
     }
 }
